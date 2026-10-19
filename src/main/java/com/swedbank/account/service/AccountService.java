@@ -55,7 +55,7 @@ public class AccountService {
 	public BigDecimal credit(UUID accountId, Currency currency, BigDecimal amount, @Nullable String idempotencyKey) {
 		requireSupported(currency);
 		Account account = findAccountForUpdate(accountId);
-		return onlyOnce(accountId, idempotencyKey, fingerprint("CREDIT", currency, amount), () -> {
+		return onlyOnce(accountId, idempotencyKey, fingerprint(Operation.CREDIT, currency, amount), () -> {
 			account.credit(currency, amount);
 			accounts.save(account);
 			return account.balanceOf(currency);
@@ -66,7 +66,7 @@ public class AccountService {
 	public BigDecimal debit(UUID accountId, Currency currency, BigDecimal amount, @Nullable String idempotencyKey) {
 		requireSupported(currency);
 		Account account = findAccountForUpdate(accountId);
-		return onlyOnce(accountId, idempotencyKey, fingerprint("DEBIT", currency, amount), () -> {
+		return onlyOnce(accountId, idempotencyKey, fingerprint(Operation.DEBIT, currency, amount), () -> {
 			account.requireCanDebit(currency, amount);
 			externalLogging.logDebit(accountId, currency, amount);
 			account.debit(currency, amount);
@@ -81,7 +81,7 @@ public class AccountService {
 		requireSupported(from);
 		requireSupported(to);
 		Account account = findAccountForUpdate(accountId);
-		return onlyOnce(accountId, idempotencyKey, fingerprint("EXCHANGE", from, to, amount), () -> {
+		return onlyOnce(accountId, idempotencyKey, fingerprint(Operation.EXCHANGE, from, to, amount), () -> {
 			BigDecimal credited = account.exchange(from, to, amount, exchangeRates);
 			accounts.save(account);
 			return credited;
@@ -106,8 +106,8 @@ public class AccountService {
 		return result;
 	}
 
-	private static String fingerprint(String operation, Object... parts) {
-		StringBuilder fingerprint = new StringBuilder(operation);
+	private static String fingerprint(Operation operation, Object... parts) {
+		StringBuilder fingerprint = new StringBuilder(operation.name());
 		for (Object part : parts) {
 			fingerprint.append(' ').append(part instanceof BigDecimal amount
 					? amount.stripTrailingZeros().toPlainString()
